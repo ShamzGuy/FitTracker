@@ -2,13 +2,21 @@
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Button, Card, EmptyState, Input, Label, Select } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Input,
+  Label,
+  Select,
+} from "@/components/ui";
 import type { Exercise, ExerciseKind } from "@/lib/types";
 
 const KIND_LABEL: Record<ExerciseKind, string> = {
   weight: "Weight × Reps",
   time: "Time",
-  reps: "Bodyweight reps",
+  reps: "Bodyweight",
 };
 
 export function ExerciseManager({ initial }: { initial: Exercise[] }) {
@@ -18,6 +26,7 @@ export function ExerciseManager({ initial }: { initial: Exercise[] }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState("");
+  const [adding, setAdding] = useState(false);
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -36,7 +45,6 @@ export function ExerciseManager({ initial }: { initial: Exercise[] }) {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not signed in");
-
       const { data, error } = await supabase
         .from("exercises")
         .insert({ user_id: user.id, name: name.trim(), kind })
@@ -47,6 +55,7 @@ export function ExerciseManager({ initial }: { initial: Exercise[] }) {
         [...prev, data as Exercise].sort((a, b) => a.name.localeCompare(b.name))
       );
       setName("");
+      setAdding(false);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to add exercise");
     } finally {
@@ -55,7 +64,11 @@ export function ExerciseManager({ initial }: { initial: Exercise[] }) {
   }
 
   async function remove(id: string) {
-    if (!confirm("Delete this exercise? Past logs that reference it will also be removed."))
+    if (
+      !confirm(
+        "Delete this exercise? Past logs that reference it will also be removed."
+      )
+    )
       return;
     const supabase = createClient();
     const { error } = await supabase.from("exercises").delete().eq("id", id);
@@ -67,49 +80,71 @@ export function ExerciseManager({ initial }: { initial: Exercise[] }) {
   }
 
   return (
-    <div className="space-y-5">
-      <Card className="p-4">
-        <form onSubmit={add} className="space-y-3">
-          <div>
-            <Label>Name</Label>
-            <Input
-              placeholder="e.g. Bench press, Plank, Pull-up"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label>Type</Label>
-            <Select
-              value={kind}
-              onChange={(e) => setKind(e.target.value as ExerciseKind)}
-            >
-              <option value="weight">Weight × Reps</option>
-              <option value="time">Time (seconds)</option>
-              <option value="reps">Bodyweight reps</option>
-            </Select>
-          </div>
-          {error ? (
-            <p className="text-sm text-[var(--danger)]">{error}</p>
-          ) : null}
-          <Button type="submit" disabled={busy} className="w-full">
-            {busy ? "Adding…" : "Add exercise"}
-          </Button>
-        </form>
-      </Card>
+    <div className="space-y-4">
+      <Input
+        placeholder="Search…"
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+      />
 
-      <div>
-        <Input
-          placeholder="Search exercises…"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-      </div>
+      {adding ? (
+        <Card className="p-4 space-y-3">
+          <form onSubmit={add} className="space-y-3">
+            <div>
+              <Label>Name</Label>
+              <Input
+                autoFocus
+                placeholder="e.g. Bench press, Plank"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Type</Label>
+              <Select
+                value={kind}
+                onChange={(e) => setKind(e.target.value as ExerciseKind)}
+              >
+                <option value="weight">Weight × Reps</option>
+                <option value="time">Time (seconds)</option>
+                <option value="reps">Bodyweight reps</option>
+              </Select>
+            </div>
+            {error ? (
+              <p className="text-sm text-[var(--danger)]">{error}</p>
+            ) : null}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setAdding(false);
+                  setName("");
+                  setError(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={busy} className="flex-1">
+                {busy ? "Adding…" : "Add exercise"}
+              </Button>
+            </div>
+          </form>
+        </Card>
+      ) : (
+        <Button
+          variant="secondary"
+          onClick={() => setAdding(true)}
+          className="w-full"
+        >
+          + Add exercise
+        </Button>
+      )}
 
       {filtered.length === 0 ? (
         <EmptyState
           title="No exercises yet"
-          description="Add your first exercise above to start logging workouts."
+          description="Tap “Add exercise” above, or import the 4-day plan from Plans."
         />
       ) : (
         <ul className="space-y-2">
@@ -117,14 +152,14 @@ export function ExerciseManager({ initial }: { initial: Exercise[] }) {
             <li key={ex.id}>
               <Card className="p-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-medium truncate">{ex.name}</p>
-                  <p className="text-xs text-[var(--muted)]">
-                    {KIND_LABEL[ex.kind]}
-                  </p>
+                  <p className="font-semibold truncate">{ex.name}</p>
+                  <div className="mt-1">
+                    <Badge>{KIND_LABEL[ex.kind]}</Badge>
+                  </div>
                 </div>
                 <button
                   onClick={() => remove(ex.id)}
-                  className="text-xs text-[var(--danger)] font-medium px-2 py-1"
+                  className="text-xs text-[var(--danger)] font-semibold px-2 py-1"
                   aria-label={`Delete ${ex.name}`}
                 >
                   Delete

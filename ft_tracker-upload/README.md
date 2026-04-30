@@ -13,7 +13,8 @@ your iPhone home screen and works like a native app.
   muscle group, or type a custom name and the type is auto-detected.
 - Per-exercise **history** and **progress chart**.
 - Cloud-synced with **Supabase** (free tier).
-- Magic-link sign-in — no passwords.
+- **No login screen** — your phone gets an anonymous Supabase session
+  automatically. Zero friction, your data still syncs to the cloud.
 
 ---
 
@@ -30,6 +31,15 @@ your iPhone home screen and works like a native app.
 1. In your Supabase dashboard, open **SQL Editor → New query**.
 2. Paste the contents of [`supabase/schema.sql`](supabase/schema.sql).
 3. Click **Run**. You should see "Success".
+
+### 2b. Enable anonymous sign-ins
+
+The app uses anonymous sessions so there's no login screen. Enable it:
+
+1. In Supabase: **Authentication → Sign In / Up** (or **Providers** in older
+   versions).
+2. Find **Allow anonymous sign-ins** and toggle it **on**.
+3. Save.
 
 ### 3. Get your API keys
 

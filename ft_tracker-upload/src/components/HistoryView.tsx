@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Card, EmptyState, Select } from "@/components/ui";
+import { Card, EmptyState, SectionTitle, Select } from "@/components/ui";
 import { formatDateTime, formatTime } from "@/lib/format";
 import type { Exercise, Workout, WorkoutSet } from "@/lib/types";
 
@@ -29,9 +29,6 @@ export function HistoryView({
 }) {
   const router = useRouter();
 
-  // For weight: best set per workout-day (1RM-ish = max weight × reps).
-  // For reps:   max reps per day.
-  // For time:   best (longest or shortest? we'll use max) per day.
   const chartData = useMemo(() => {
     if (!focused) return [];
     const byDay = new Map<string, number>();
@@ -57,7 +54,7 @@ export function HistoryView({
       ? "Volume (weight × reps)"
       : focused?.kind === "reps"
       ? "Max reps"
-      : "Best time (s)";
+      : "Best time";
 
   if (exercises.length === 0) {
     return (
@@ -71,9 +68,9 @@ export function HistoryView({
   return (
     <div className="space-y-5">
       <Card className="p-4">
-        <label className="block text-xs font-medium text-[var(--muted)] mb-1.5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--foreground-muted)] mb-2">
           Exercise
-        </label>
+        </p>
         <Select
           value={focused?.id ?? ""}
           onChange={(e) => router.push(`/history?exercise=${e.target.value}`)}
@@ -88,10 +85,14 @@ export function HistoryView({
 
       {focused ? (
         <Card className="p-4">
-          <p className="text-sm font-medium mb-1">{focused.name}</p>
-          <p className="text-xs text-[var(--muted)] mb-3">{valueLabel}</p>
+          <p className="font-semibold">{focused.name}</p>
+          <p className="text-xs text-[var(--foreground-muted)] mt-0.5 mb-3">
+            {valueLabel}
+          </p>
           {chartData.length === 0 ? (
-            <p className="text-sm text-[var(--muted)]">No sets logged yet.</p>
+            <p className="text-sm text-[var(--foreground-muted)]">
+              No sets logged yet.
+            </p>
           ) : (
             <div className="h-56 -mx-2">
               <ResponsiveContainer width="100%" height="100%">
@@ -108,11 +109,11 @@ export function HistoryView({
                         day: "numeric",
                       })
                     }
-                    stroke="var(--muted)"
+                    stroke="var(--foreground-muted)"
                     fontSize={11}
                   />
                   <YAxis
-                    stroke="var(--muted)"
+                    stroke="var(--foreground-muted)"
                     fontSize={11}
                     width={40}
                     tickFormatter={(v) =>
@@ -121,9 +122,9 @@ export function HistoryView({
                   />
                   <Tooltip
                     contentStyle={{
-                      background: "var(--card)",
+                      background: "var(--surface-2)",
                       border: "1px solid var(--border)",
-                      borderRadius: 8,
+                      borderRadius: 12,
                       fontSize: 12,
                     }}
                     formatter={(v) => {
@@ -138,7 +139,7 @@ export function HistoryView({
                     type="monotone"
                     dataKey="value"
                     stroke="var(--primary)"
-                    strokeWidth={2}
+                    strokeWidth={2.5}
                     dot={{ r: 3, fill: "var(--primary)" }}
                   />
                 </LineChart>
@@ -149,11 +150,9 @@ export function HistoryView({
       ) : null}
 
       <section>
-        <h2 className="text-sm font-semibold text-[var(--muted)] uppercase tracking-wider mb-2">
-          All workouts
-        </h2>
+        <SectionTitle>All workouts</SectionTitle>
         {workouts.length === 0 ? (
-          <Card className="p-4 text-sm text-[var(--muted)]">
+          <Card className="p-4 text-sm text-[var(--foreground-muted)]">
             No completed workouts yet.
           </Card>
         ) : (
@@ -162,8 +161,8 @@ export function HistoryView({
               <li key={w.id}>
                 <Link href={`/workout/${w.id}`}>
                   <Card className="p-3 hover:border-[var(--primary)]/50 transition">
-                    <p className="font-medium">{w.name ?? "Workout"}</p>
-                    <p className="text-xs text-[var(--muted)] mt-0.5">
+                    <p className="font-semibold">{w.name ?? "Workout"}</p>
+                    <p className="text-xs text-[var(--foreground-muted)] mt-0.5">
                       {formatDateTime(w.started_at)}
                     </p>
                   </Card>

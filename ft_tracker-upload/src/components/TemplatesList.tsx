@@ -32,7 +32,7 @@ export function TemplatesList({
   }
 
   return (
-    <ul className="space-y-3">
+    <ul className="space-y-2">
       {templates.map((t) => (
         <li key={t.id}>
           <Card className="p-4">
@@ -41,8 +41,8 @@ export function TemplatesList({
                 href={`/templates/${t.id}`}
                 className="block flex-1 min-w-0"
               >
-                <p className="font-medium truncate">{t.name}</p>
-                <p className="text-xs text-[var(--muted)] mt-0.5 truncate">
+                <p className="font-semibold truncate">{t.name}</p>
+                <p className="text-xs text-[var(--foreground-muted)] mt-0.5 truncate">
                   {t.exercises.length === 0
                     ? "No exercises yet"
                     : t.exercises.join(" · ")}
@@ -50,7 +50,7 @@ export function TemplatesList({
               </Link>
               <button
                 onClick={() => remove(t.id)}
-                className="text-xs text-[var(--danger)] font-medium px-2 py-1"
+                className="text-xs text-[var(--danger)] font-semibold px-2 py-1"
               >
                 Delete
               </button>

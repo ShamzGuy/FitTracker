@@ -1,26 +1,53 @@
 @import "tailwindcss";
 
+/* ============================================================
+ * Theme — warm pastel, premium boutique-fitness vibe.
+ * Cream background, sage-green primary, dusty-coral accent,
+ * warm dark-brown text instead of harsh black.
+ * ============================================================ */
+
 :root {
-  --background: #f7f7f8;
-  --foreground: #0a0a0b;
-  --card: #ffffff;
-  --card-foreground: #0a0a0b;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --primary: #2563eb;
+  --background: #fbf7ee;
+  --surface: #ffffff;
+  --surface-2: #f5efe2;
+  --surface-3: #ebe2cf;
+  --border: rgba(45, 42, 38, 0.08);
+  --border-strong: rgba(45, 42, 38, 0.18);
+
+  --foreground: #2c2a26;
+  --foreground-muted: #756c61;
+  --foreground-subtle: #a89f92;
+
+  --primary: #6b9670;
+  --primary-hover: #588459;
+  --primary-soft: rgba(107, 150, 112, 0.14);
   --primary-foreground: #ffffff;
-  --accent: #10b981;
-  --danger: #ef4444;
+
+  --accent: #e89884;
+  --accent-soft: rgba(232, 152, 132, 0.16);
+  --danger: #d4756b;
+
+  --shadow-card: 0 1px 2px rgba(45, 42, 38, 0.04),
+    0 4px 14px rgba(45, 42, 38, 0.05);
+  --shadow-card-hover: 0 1px 2px rgba(45, 42, 38, 0.05),
+    0 8px 24px rgba(45, 42, 38, 0.08);
+
+  --radius-card: 18px;
+  --radius-button: 14px;
+  --radius-pill: 9999px;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-muted: var(--muted);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-muted: var(--foreground-muted);
+  --color-subtle: var(--foreground-subtle);
   --color-border: var(--border);
   --color-primary: var(--primary);
+  --color-primary-soft: var(--primary-soft);
   --color-primary-foreground: var(--primary-foreground);
   --color-accent: var(--accent);
   --color-danger: var(--danger);
@@ -28,18 +55,8 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b0b0d;
-    --foreground: #f5f5f7;
-    --card: #16161a;
-    --card-foreground: #f5f5f7;
-    --muted: #9ca3af;
-    --border: #26262c;
-    --primary: #3b82f6;
-    --primary-foreground: #ffffff;
-    --accent: #10b981;
-  }
+html {
+  color-scheme: light;
 }
 
 html,
@@ -47,12 +64,13 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont,
-    "Segoe UI", Roboto, sans-serif;
+    "SF Pro Display", "Segoe UI", Roboto, sans-serif;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
+  text-rendering: optimizeLegibility;
 }
 
-/* iOS safe-area helpers (used via inline padding utilities) */
+/* iOS safe areas */
 @supports (padding: max(0px)) {
   .pb-safe {
     padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
@@ -60,17 +78,83 @@ body {
   .pt-safe {
     padding-top: max(0.75rem, env(safe-area-inset-top));
   }
+  .pb-safe-lg {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 5.5rem);
+  }
 }
 
-/* Inputs feel large + tap-friendly on mobile */
+/* Prevent iOS auto-zoom on focus */
 input,
 select,
 textarea,
 button {
-  font-size: 16px; /* prevents iOS zoom-on-focus */
+  font-size: 16px;
 }
 
 button {
   -webkit-user-select: none;
   user-select: none;
+  touch-action: manipulation;
+}
+
+/* No native number-input spinners — we use custom steppers */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* ============================================================
+ * Animations
+ * ============================================================ */
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pop {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+.animate-sheet-up {
+  animation: sheet-up 240ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.animate-fade-in {
+  animation: fade-in 180ms ease-out;
+}
+.animate-pop {
+  animation: pop 220ms ease-out;
+}
+
+/* Custom scrollbar (subtle) */
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+
+/* Reusable utility classes */
+.divider {
+  height: 1px;
+  background: var(--border);
+}
+
+/* Recharts theming */
+.recharts-cartesian-grid line {
+  stroke: var(--border) !important;
+}
+.recharts-tooltip-cursor {
+  fill: var(--surface-2) !important;
 }

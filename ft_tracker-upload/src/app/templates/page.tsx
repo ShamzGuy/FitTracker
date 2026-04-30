@@ -50,12 +50,12 @@ export default async function TemplatesPage() {
       />
 
       {planMissing ? (
-        <Card className="p-4 bg-[var(--primary)]/5 border-[var(--primary)]/30">
-          <p className="font-medium">Import the 4-day workout plan</p>
-          <p className="text-sm text-[var(--muted)] mt-0.5 mb-3">
-            Adds 4 day templates (Chest &amp; Triceps, Back &amp; Biceps,
-            Legs &amp; Cardio, Shoulders &amp; Arms) and the 26 exercises they
-            need — each pre-set with the right type (weight, reps, or time).
+        <Card className="p-5 border-[var(--primary)]/30 bg-[var(--primary-soft)]">
+          <p className="font-semibold">Import the 4-day plan</p>
+          <p className="text-sm text-[var(--foreground-muted)] mt-1 mb-4">
+            Adds Chest &amp; Triceps, Back &amp; Biceps, Legs &amp; Cardio,
+            and Shoulders &amp; Arms — pre-loaded with the right exercises
+            and targets.
           </p>
           <SeedPlanButton label="Import 4-day plan" />
         </Card>

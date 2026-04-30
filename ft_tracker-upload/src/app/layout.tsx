@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { BottomNav } from "@/components/BottomNav";
+import { AnonAuthGate } from "@/components/AnonAuthGate";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,11 +16,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "ft_tracker",
-  description: "Simple workout tracker — log weights and times on the go.",
+  description: "Workout tracker — log weights and times on the go.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "ft_tracker",
   },
   icons: {
@@ -33,10 +34,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f7f8" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b0b0d" },
-  ],
+  themeColor: "#fbf7ee",
 };
 
 export default function RootLayout({
@@ -49,11 +47,13 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <main className="flex-1 max-w-xl w-full mx-auto px-4 pt-safe pb-6">
-          {children}
-        </main>
-        <BottomNav />
+      <body className="min-h-full flex flex-col bg-[var(--background)]">
+        <AnonAuthGate>
+          <main className="flex-1 max-w-xl w-full mx-auto px-4 pt-safe pb-safe-lg">
+            {children}
+          </main>
+          <BottomNav />
+        </AnonAuthGate>
       </body>
     </html>
   );

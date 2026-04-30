@@ -122,6 +122,7 @@ export function SeedPlanButton({
         onClick={seed}
         disabled={busy}
         variant={variant}
+        size="lg"
         className="w-full"
       >
         {busy ? "Setting up…" : label}

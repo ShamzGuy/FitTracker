@@ -2,8 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import clsx from "clsx";
 import { createClient } from "@/lib/supabase/client";
 import {
+  Badge,
   Button,
   Card,
   Input,
@@ -12,7 +14,9 @@ import {
   Select,
 } from "@/components/ui";
 import { AddExerciseSheet } from "@/components/AddExerciseSheet";
-import { formatDateTime, formatTime, parseTimeInput } from "@/lib/format";
+import { NumberStepper } from "@/components/NumberStepper";
+import { TimeStepper } from "@/components/TimeStepper";
+import { formatDateTime, formatTime } from "@/lib/format";
 import type {
   Exercise,
   TemplateExercise,
@@ -43,7 +47,6 @@ export function WorkoutScreen({
     () => new Set(exercises.map((e) => e.name.toLowerCase())),
     [exercises]
   );
-
   const templateById = useMemo(
     () => new Map(templateItems.map((t) => [t.exercise_id, t])),
     [templateItems]
@@ -55,7 +58,7 @@ export function WorkoutScreen({
     if (initialSets[0]) return initialSets[0].exercise_id;
     return exercises[0]?.id ?? "";
   });
-  const [showPicker, setShowPicker] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [name, setName] = useState(workout.name ?? "");
   const [busy, setBusy] = useState(false);
   const [finished, setFinished] = useState(!!workout.ended_at);
@@ -72,7 +75,6 @@ export function WorkoutScreen({
     return map;
   }, [sets]);
 
-  // Order: template order first, then any extra exercises that have sets logged.
   const orderedExerciseIds = useMemo(() => {
     const ordered: string[] = [];
     const seen = new Set<string>();
@@ -90,6 +92,8 @@ export function WorkoutScreen({
     }
     return ordered;
   }, [templateItems, sets]);
+
+  const totalSets = sets.length;
 
   async function saveName() {
     if ((name || null) === (workout.name || null)) return;
@@ -172,14 +176,17 @@ export function WorkoutScreen({
         : [...prev, ex].sort((a, b) => a.name.localeCompare(b.name))
     );
     setActiveExerciseId(ex.id);
-    setShowPicker(false);
+    setPickerOpen(false);
   }
 
   async function finish() {
     setBusy(true);
     await supabase
       .from("workouts")
-      .update({ ended_at: new Date().toISOString(), name: name.trim() || null })
+      .update({
+        ended_at: new Date().toISOString(),
+        name: name.trim() || null,
+      })
       .eq("id", workout.id);
     setFinished(true);
     setBusy(false);
@@ -200,75 +207,69 @@ export function WorkoutScreen({
   return (
     <div className="space-y-5">
       <PageHeader
-        title={finished ? "Workout summary" : "Workout"}
-        subtitle={formatDateTime(workout.started_at)}
+        title={finished ? "Workout summary" : name.trim() || "Workout"}
+        subtitle={`${formatDateTime(workout.started_at)} · ${totalSets} ${
+          totalSets === 1 ? "set" : "sets"
+        }`}
       />
 
-      <Card className="p-4 space-y-3">
-        <div>
-          <Label>Name</Label>
+      {!finished ? (
+        <Card className="p-4">
+          <Label>Workout name</Label>
           <Input
             placeholder="e.g. Push day"
             value={name}
             onChange={(e) => setName(e.target.value)}
             onBlur={saveName}
-            disabled={finished}
           />
-        </div>
-      </Card>
+        </Card>
+      ) : null}
 
       {!finished && (
-        <Card className="p-4 space-y-3">
-          {showPicker ? (
-            <AddExerciseSheet
-              existingNames={existingNames}
-              onAdded={handleExerciseAdded}
-              onCancel={() => setShowPicker(false)}
-            />
-          ) : (
-            <>
-              <div className="flex items-center justify-between gap-2">
-                <Label className="!mb-0">Exercise</Label>
-                <button
-                  type="button"
-                  onClick={() => setShowPicker(true)}
-                  className="text-sm font-medium text-[var(--primary)]"
-                >
-                  + Add exercise
-                </button>
-              </div>
-              <Select
-                value={activeExerciseId}
-                onChange={(e) => setActiveExerciseId(e.target.value)}
+        <Card className="p-5 space-y-5">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <Label className="!mb-0">Logging</Label>
+              <button
+                type="button"
+                onClick={() => setPickerOpen(true)}
+                className="text-sm font-semibold text-[var(--primary)] active:scale-95 transition"
               >
-                {exercises.length === 0 ? (
-                  <option value="">No exercises — tap + Add exercise</option>
-                ) : (
-                  exercises.map((ex) => (
-                    <option key={ex.id} value={ex.id}>
-                      {ex.name}
-                    </option>
-                  ))
-                )}
-              </Select>
-              {activeExercise ? (
-                <SetEntry
-                  key={activeExercise.id}
-                  exercise={activeExercise}
-                  target={templateById.get(activeExercise.id) ?? null}
-                  previous={(setsByExercise.get(activeExercise.id) ?? []).slice(-1)[0]}
-                  onAdd={addSet}
-                />
-              ) : null}
-            </>
-          )}
+                + Add exercise
+              </button>
+            </div>
+            <Select
+              value={activeExerciseId}
+              onChange={(e) => setActiveExerciseId(e.target.value)}
+            >
+              {exercises.length === 0 ? (
+                <option value="">No exercises — tap + Add exercise</option>
+              ) : (
+                exercises.map((ex) => (
+                  <option key={ex.id} value={ex.id}>
+                    {ex.name}
+                  </option>
+                ))
+              )}
+            </Select>
+          </div>
+
+          {activeExercise ? (
+            <SetEntry
+              key={activeExercise.id}
+              exercise={activeExercise}
+              target={templateById.get(activeExercise.id) ?? null}
+              previous={(setsByExercise.get(activeExercise.id) ?? []).slice(-1)[0]}
+              onAdd={addSet}
+            />
+          ) : null}
         </Card>
       )}
 
       <section className="space-y-3">
         {orderedExerciseIds.length === 0 ? (
-          <Card className="p-4 text-sm text-[var(--muted)]">
-            No sets logged yet. Pick an exercise above to start.
+          <Card className="p-5 text-sm text-[var(--foreground-muted)] text-center">
+            Pick an exercise above to start logging.
           </Card>
         ) : (
           orderedExerciseIds.map((exId) => {
@@ -278,65 +279,77 @@ export function WorkoutScreen({
             const target = templateById.get(exId) ?? null;
             const targetText = formatTarget(ex, target);
             const isActive = !finished && exId === activeExerciseId;
+            const targetSets = target?.target_sets ?? null;
+            const complete =
+              targetSets != null && exSets.length >= targetSets && exSets.length > 0;
             return (
               <Card
                 key={exId}
-                className={
-                  isActive
-                    ? "p-4 border-[var(--primary)]/50"
-                    : "p-4"
-                }
+                className={clsx(
+                  "p-4 transition",
+                  isActive && "ring-2 ring-[var(--primary)]/40",
+                  complete && !isActive && "ring-1 ring-[var(--primary)]/30"
+                )}
               >
-                <div className="flex items-center justify-between mb-2 gap-2">
-                  <div className="min-w-0">
-                    <p className="font-medium truncate">{ex.name}</p>
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="font-semibold truncate">{ex.name}</p>
+                      {complete ? (
+                        <Badge variant="primary">Done</Badge>
+                      ) : null}
+                    </div>
                     {targetText ? (
-                      <p className="text-xs text-[var(--muted)] mt-0.5">
+                      <p className="text-xs text-[var(--foreground-muted)]">
                         Target: {targetText}
                       </p>
                     ) : null}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <p className="text-xs text-[var(--muted)]">
+                    <p className="text-xs text-[var(--foreground-muted)] font-semibold tabular-nums">
                       {exSets.length}
-                      {target?.target_sets ? `/${target.target_sets}` : ""} set
-                      {exSets.length === 1 ? "" : "s"}
+                      {target?.target_sets ? ` / ${target.target_sets}` : ""}
                     </p>
                     {!finished && !isActive ? (
                       <button
                         onClick={() => {
                           setActiveExerciseId(exId);
-                          setShowPicker(false);
+                          setPickerOpen(false);
                         }}
-                        className="text-xs text-[var(--primary)] font-medium px-2"
+                        className="text-xs text-[var(--primary)] font-semibold px-2"
                       >
                         Log
                       </button>
                     ) : null}
                   </div>
                 </div>
+
                 {exSets.length === 0 ? (
-                  <p className="text-sm text-[var(--muted)]">No sets yet.</p>
+                  <p className="text-sm text-[var(--foreground-subtle)]">
+                    No sets yet.
+                  </p>
                 ) : (
-                  <ul className="divide-y divide-[var(--border)]">
+                  <ul className="space-y-1.5">
                     {exSets.map((s) => (
                       <li
                         key={s.id}
-                        className="flex items-center justify-between py-2 text-sm"
+                        className="flex items-center justify-between py-1.5 px-3 rounded-[10px] bg-[var(--surface-2)]"
                       >
-                        <span className="text-[var(--muted)] w-6">
-                          {s.set_number}.
+                        <span className="text-[var(--foreground-muted)] text-xs font-semibold w-6 tabular-nums">
+                          {s.set_number}
                         </span>
-                        <span className="flex-1 font-medium">
+                        <span className="flex-1 font-semibold tabular-nums text-center">
                           {formatSetValue(s, ex)}
                         </span>
                         {!finished ? (
                           <button
                             onClick={() => deleteSet(s.id)}
-                            className="text-[var(--muted)] text-xs px-2"
+                            className="text-[var(--foreground-subtle)] hover:text-[var(--danger)] text-xs px-1"
                             aria-label="Delete set"
                           >
-                            ✕
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                              <path d="M18 6L6 18M6 6l12 12" />
+                            </svg>
                           </button>
                         ) : null}
                       </li>
@@ -350,22 +363,33 @@ export function WorkoutScreen({
       </section>
 
       {!finished ? (
-        <div className="flex gap-2 sticky bottom-16 z-10">
-          <Button variant="secondary" onClick={discard} disabled={busy}>
-            Discard
-          </Button>
-          <Button onClick={finish} disabled={busy} className="flex-1">
-            {busy ? "Finishing…" : "Finish workout"}
-          </Button>
+        <div className="fixed bottom-20 left-0 right-0 z-20 px-4 pointer-events-none">
+          <div className="max-w-xl mx-auto flex gap-2 pointer-events-auto">
+            <Button variant="secondary" onClick={discard} disabled={busy}>
+              Discard
+            </Button>
+            <Button onClick={finish} disabled={busy} className="flex-1">
+              {busy ? "Finishing…" : "Finish workout"}
+            </Button>
+          </div>
         </div>
       ) : null}
+
+      <AddExerciseSheet
+        open={pickerOpen}
+        existingNames={existingNames}
+        onAdded={handleExerciseAdded}
+        onClose={() => setPickerOpen(false)}
+      />
     </div>
   );
 }
 
 function formatSetValue(s: WorkoutSet, ex: Exercise) {
   if (ex.kind === "weight") {
-    return `${s.weight ?? 0} × ${s.reps ?? 0}`;
+    const w = s.weight ?? 0;
+    const r = s.reps ?? 0;
+    return `${w} × ${r}`;
   }
   if (ex.kind === "time") {
     return formatTime(s.time_seconds);
@@ -385,14 +409,16 @@ function formatTarget(
     return null;
   }
   if (ex.kind === "reps") {
-    if (sets && target.target_reps) return `${sets} × ${target.target_reps} reps`;
+    if (sets && target.target_reps)
+      return `${sets} × ${target.target_reps} reps`;
     if (sets) return `${sets} × failure`;
     return null;
   }
   if (ex.kind === "time") {
     if (sets && target.target_time_seconds)
       return `${sets} × ${formatTime(target.target_time_seconds)}`;
-    if (target.target_time_seconds) return formatTime(target.target_time_seconds);
+    if (target.target_time_seconds)
+      return formatTime(target.target_time_seconds);
     if (sets) return `${sets} sets`;
     return null;
   }
@@ -415,119 +441,119 @@ function SetEntry({
     timeSeconds?: number | null;
   }) => Promise<void>;
 }) {
-  // Component is keyed on exercise.id, so initial values come from the
-  // most recent set for that exercise — or fall back to the template target.
-  const [weight, setWeight] = useState(() =>
-    exercise.kind === "weight" && previous?.weight != null
-      ? String(previous.weight)
-      : ""
-  );
-  const [reps, setReps] = useState(() => {
-    if (exercise.kind !== "weight" && exercise.kind !== "reps") return "";
-    if (previous?.reps != null) return String(previous.reps);
-    if (target?.target_reps != null) return String(target.target_reps);
-    return "";
+  // Initial values: previous set first, then template target, then sane defaults.
+  const [weight, setWeight] = useState<number>(() => {
+    if (exercise.kind !== "weight") return 0;
+    if (previous?.weight != null) return previous.weight;
+    return 0;
   });
-  const [timeStr, setTimeStr] = useState(() => {
-    if (exercise.kind !== "time") return "";
-    if (previous?.time_seconds != null) return formatTime(previous.time_seconds);
-    if (target?.target_time_seconds != null)
-      return formatTime(target.target_time_seconds);
-    return "";
+  const [reps, setReps] = useState<number>(() => {
+    if (exercise.kind === "time") return 0;
+    if (previous?.reps != null) return previous.reps;
+    if (target?.target_reps != null) return target.target_reps;
+    return exercise.kind === "weight" ? 10 : 12;
+  });
+  const [timeSeconds, setTimeSeconds] = useState<number>(() => {
+    if (exercise.kind !== "time") return 0;
+    if (previous?.time_seconds != null) return previous.time_seconds;
+    if (target?.target_time_seconds != null) return target.target_time_seconds;
+    return 30;
   });
   const [busy, setBusy] = useState(false);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  const weightStep = 2;
+
+  async function submit() {
     setBusy(true);
     try {
       if (exercise.kind === "weight") {
         await onAdd({
           exerciseId: exercise.id,
-          weight: weight ? parseFloat(weight) : null,
-          reps: reps ? parseInt(reps, 10) : null,
+          weight,
+          reps,
         });
       } else if (exercise.kind === "reps") {
-        await onAdd({
-          exerciseId: exercise.id,
-          reps: reps ? parseInt(reps, 10) : null,
-        });
+        await onAdd({ exerciseId: exercise.id, reps });
       } else {
-        const seconds = parseTimeInput(timeStr);
-        await onAdd({ exerciseId: exercise.id, timeSeconds: seconds });
+        await onAdd({ exerciseId: exercise.id, timeSeconds });
       }
     } finally {
       setBusy(false);
     }
   }
 
+  function copyLast() {
+    if (!previous) return;
+    if (exercise.kind === "weight") {
+      if (previous.weight != null) setWeight(previous.weight);
+      if (previous.reps != null) setReps(previous.reps);
+    } else if (exercise.kind === "reps") {
+      if (previous.reps != null) setReps(previous.reps);
+    } else {
+      if (previous.time_seconds != null) setTimeSeconds(previous.time_seconds);
+    }
+  }
+
   return (
-    <form onSubmit={submit} className="space-y-3">
+    <div className="space-y-5">
       {exercise.kind === "weight" ? (
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Weight</Label>
-            <Input
-              type="number"
-              inputMode="decimal"
-              step="0.5"
-              placeholder={previous?.weight != null ? String(previous.weight) : "kg / lb"}
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label>Reps</Label>
-            <Input
-              type="number"
-              inputMode="numeric"
-              placeholder={
-                previous?.reps != null
-                  ? String(previous.reps)
-                  : target?.target_reps
-                  ? String(target.target_reps)
-                  : "reps"
-              }
-              value={reps}
-              onChange={(e) => setReps(e.target.value)}
-            />
-          </div>
+        <div className="grid grid-cols-2 gap-4">
+          <NumberStepper
+            label="Weight"
+            value={weight}
+            onChange={setWeight}
+            step={weightStep}
+            min={0}
+            unit="kg"
+          />
+          <NumberStepper
+            label="Reps"
+            value={reps}
+            onChange={setReps}
+            step={1}
+            min={0}
+            unit="reps"
+          />
         </div>
       ) : exercise.kind === "reps" ? (
-        <div>
-          <Label>Reps</Label>
-          <Input
-            type="number"
-            inputMode="numeric"
-            placeholder={
-              previous?.reps != null
-                ? String(previous.reps)
-                : target?.target_reps
-                ? String(target.target_reps)
-                : "reps"
-            }
-            value={reps}
-            onChange={(e) => setReps(e.target.value)}
-          />
-        </div>
+        <NumberStepper
+          label="Reps"
+          value={reps}
+          onChange={setReps}
+          step={1}
+          min={0}
+          unit="reps"
+        />
       ) : (
-        <div>
-          <Label>Time (mm:ss or seconds)</Label>
-          <Input
-            inputMode="numeric"
-            placeholder={
-              target?.target_time_seconds
-                ? formatTime(target.target_time_seconds)
-                : "e.g. 1:30 or 90"
-            }
-            value={timeStr}
-            onChange={(e) => setTimeStr(e.target.value)}
-          />
-        </div>
+        <TimeStepper
+          label="Time"
+          totalSeconds={timeSeconds}
+          onChange={setTimeSeconds}
+        />
       )}
-      <Button type="submit" disabled={busy} className="w-full">
-        {busy ? "Adding…" : "Log set"}
-      </Button>
-    </form>
+
+      <div className="flex gap-2">
+        {previous ? (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={copyLast}
+            disabled={busy}
+            className="shrink-0"
+          >
+            Same as last
+          </Button>
+        ) : null}
+        <Button
+          type="button"
+          onClick={submit}
+          disabled={busy}
+          size="lg"
+          className="flex-1"
+        >
+          {busy ? "Logging…" : "Log set"}
+        </Button>
+      </div>
+    </div>
   );
 }

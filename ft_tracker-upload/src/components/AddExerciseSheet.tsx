@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import clsx from "clsx";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Input, Select } from "@/components/ui";
+import { Sheet } from "@/components/Sheet";
 import {
   CATEGORIES,
   POPULAR_EXERCISES,
@@ -14,27 +15,27 @@ import {
 import type { Exercise, ExerciseKind } from "@/lib/types";
 
 /**
- * Inline picker that lets the user add an exercise to their library.
- * - Search across the popular catalog (grouped by muscle group).
- * - If the typed name doesn't match anything, offer a "create custom" row
- *   with auto-detected type that the user can override.
+ * Bottom-sheet picker that lets the user add an exercise to their library.
+ * - Search filters the popular catalog (grouped by muscle).
+ * - If no exact match, offers a "create custom" row with auto-detected
+ *   type that the user can override.
  */
 export function AddExerciseSheet({
+  open,
   existingNames,
   onAdded,
-  onCancel,
+  onClose,
 }: {
-  /** Lowercased names already in the user's library — shown but disabled. */
+  open: boolean;
   existingNames: Set<string>;
   onAdded: (exercise: Exercise) => void;
-  onCancel: () => void;
+  onClose: () => void;
 }) {
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const q = search.trim().toLowerCase();
-
   const filtered = useMemo(() => {
     if (!q) return POPULAR_EXERCISES;
     return POPULAR_EXERCISES.filter((e) => e.name.toLowerCase().includes(q));
@@ -56,7 +57,6 @@ export function AddExerciseSheet({
       if (!user) throw new Error("Not signed in");
 
       const trimmed = name.trim();
-      // If it already exists, just return it instead of failing.
       if (existingNames.has(trimmed.toLowerCase())) {
         const { data: existing } = await supabase
           .from("exercises")
@@ -66,6 +66,7 @@ export function AddExerciseSheet({
           .maybeSingle();
         if (existing) {
           onAdded(existing as Exercise);
+          setSearch("");
           return;
         }
       }
@@ -77,7 +78,6 @@ export function AddExerciseSheet({
         .single();
 
       if (insErr) {
-        // Unique-name conflict: fetch the existing row and use that.
         const { data: existing } = await supabase
           .from("exercises")
           .select("*")
@@ -86,11 +86,15 @@ export function AddExerciseSheet({
           .maybeSingle();
         if (existing) {
           onAdded(existing as Exercise);
+          setSearch("");
           return;
         }
         throw insErr;
       }
-      if (data) onAdded(data as Exercise);
+      if (data) {
+        onAdded(data as Exercise);
+        setSearch("");
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to add exercise");
     } finally {
@@ -99,59 +103,59 @@ export function AddExerciseSheet({
   }
 
   return (
-    <div className="space-y-3">
-      <Input
-        autoFocus
-        placeholder="Search or type a new exercise…"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+    <Sheet open={open} onClose={onClose} title="Add exercise">
+      <div className="space-y-4">
+        <Input
+          autoFocus
+          placeholder="Search or type a new exercise…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
 
-      <div className="max-h-72 overflow-y-auto -mx-1 pr-1">
-        {CATEGORIES.map((cat) => {
-          const items = filtered.filter((e) => e.category === cat);
-          if (items.length === 0) return null;
-          return (
-            <div key={cat} className="mb-3">
-              <p className="text-[11px] uppercase tracking-wider text-[var(--muted)] font-semibold px-1 mb-1">
-                {cat}
-              </p>
-              <ul>
-                {items.map((it) => (
-                  <CatalogRow
-                    key={it.name}
-                    item={it}
-                    already={existingNames.has(it.name.toLowerCase())}
-                    busy={busy}
-                    onPick={() => add(it.name, it.kind)}
-                  />
-                ))}
-              </ul>
-            </div>
-          );
-        })}
+        <div className="space-y-4">
+          {CATEGORIES.map((cat) => {
+            const items = filtered.filter((e) => e.category === cat);
+            if (items.length === 0) return null;
+            return (
+              <div key={cat}>
+                <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--foreground-muted)] font-semibold mb-1.5 px-1">
+                  {cat}
+                </p>
+                <ul className="space-y-1">
+                  {items.map((it) => (
+                    <CatalogRow
+                      key={it.name}
+                      item={it}
+                      already={existingNames.has(it.name.toLowerCase())}
+                      busy={busy}
+                      onPick={() => add(it.name, it.kind)}
+                    />
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
 
-        {filtered.length === 0 && !offerCustom ? (
-          <p className="text-sm text-[var(--muted)] px-1 py-2">
-            No matches. Type a custom name to add it.
-          </p>
+          {filtered.length === 0 && !offerCustom ? (
+            <p className="text-sm text-[var(--foreground-muted)] px-1 py-2">
+              No matches. Type a name to add it as a custom exercise.
+            </p>
+          ) : null}
+        </div>
+
+        {offerCustom ? (
+          <CustomAddRow
+            name={search.trim()}
+            busy={busy}
+            onAdd={(name, kind) => add(name, kind)}
+          />
+        ) : null}
+
+        {error ? (
+          <p className="text-sm text-[var(--danger)]">{error}</p>
         ) : null}
       </div>
-
-      {offerCustom ? (
-        <CustomAddRow
-          name={search.trim()}
-          busy={busy}
-          onAdd={(name, kind) => add(name, kind)}
-        />
-      ) : null}
-
-      {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
-
-      <Button variant="ghost" onClick={onCancel} className="w-full">
-        Cancel
-      </Button>
-    </div>
+    </Sheet>
   );
 }
 
@@ -172,15 +176,22 @@ function CatalogRow({
         disabled={busy || already}
         onClick={onPick}
         className={clsx(
-          "w-full text-left px-2 py-2 rounded-lg flex items-center justify-between gap-3 transition",
+          "w-full text-left px-3 py-3 rounded-[14px] flex items-center justify-between gap-3 transition border",
           already
-            ? "opacity-50 cursor-default"
-            : "hover:bg-black/[0.04] dark:hover:bg-white/[0.05] active:bg-black/[0.07]"
+            ? "opacity-40 cursor-default border-transparent"
+            : "border-transparent hover:bg-[var(--surface-2)] hover:border-[var(--border)] active:scale-[0.99]"
         )}
       >
-        <span className="font-medium text-sm">{item.name}</span>
-        <span className="text-[11px] text-[var(--muted)] shrink-0">
-          {already ? "in library" : kindLabel(item.kind)}
+        <span className="font-medium">{item.name}</span>
+        <span
+          className={clsx(
+            "text-[11px] font-semibold uppercase tracking-wider shrink-0",
+            already
+              ? "text-[var(--foreground-subtle)]"
+              : "text-[var(--foreground-muted)]"
+          )}
+        >
+          {already ? "added" : kindLabel(item.kind)}
         </span>
       </button>
     </li>
@@ -200,15 +211,15 @@ function CustomAddRow({
   const [kind, setKind] = useState<ExerciseKind>(guessed);
 
   return (
-    <div className="border-t border-[var(--border)] pt-3">
-      <p className="text-xs text-[var(--muted)] mb-2">
+    <div className="border-t border-[var(--border)] pt-4 mt-2">
+      <p className="text-xs text-[var(--foreground-muted)] mb-3">
         Add custom exercise — auto-detected as{" "}
-        <span className="font-medium text-[var(--foreground)]">
+        <span className="font-semibold text-[var(--foreground)]">
           {kindLabel(guessed)}
         </span>
-        . Change below if needed.
+        .
       </p>
-      <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
+      <div className="grid grid-cols-[1fr_auto] gap-2 items-stretch">
         <Select
           value={kind}
           onChange={(e) => setKind(e.target.value as ExerciseKind)}
