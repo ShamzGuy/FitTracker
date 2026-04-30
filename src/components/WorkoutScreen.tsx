@@ -497,7 +497,7 @@ function SetEntry({
   return (
     <div className="space-y-5">
       {exercise.kind === "weight" ? (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-5">
           <NumberStepper
             label="Weight"
             value={weight}
@@ -506,6 +506,7 @@ function SetEntry({
             min={0}
             unit="kg"
           />
+          <div className="h-px bg-[var(--border)]" />
           <NumberStepper
             label="Reps"
             value={reps}
