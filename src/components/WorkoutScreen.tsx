@@ -205,7 +205,7 @@ export function WorkoutScreen({
   const activeExercise = exById.get(activeExerciseId);
 
   return (
-    <div className="space-y-5">
+    <div className={clsx("space-y-5", !finished && "pb-24")}>
       <PageHeader
         title={finished ? "Workout summary" : name.trim() || "Workout"}
         subtitle={`${formatDateTime(workout.started_at)} · ${totalSets} ${
@@ -363,7 +363,12 @@ export function WorkoutScreen({
       </section>
 
       {!finished ? (
-        <div className="fixed bottom-20 left-0 right-0 z-20 px-4 pointer-events-none">
+        <div
+          className="fixed left-0 right-0 z-20 px-4 pt-3 pb-3 pointer-events-none bg-gradient-to-t from-[var(--background)] via-[var(--background)] to-transparent"
+          style={{
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 4.25rem)",
+          }}
+        >
           <div className="max-w-xl mx-auto flex gap-2 pointer-events-auto">
             <Button variant="secondary" onClick={discard} disabled={busy}>
               Discard
