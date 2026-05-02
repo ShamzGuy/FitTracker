@@ -49,7 +49,7 @@ export function TimeStepper({
           {label}
         </p>
       ) : null}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="space-y-4">
         <NumberStepper
           value={minutes}
           onChange={setMinutes}
