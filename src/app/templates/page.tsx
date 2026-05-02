@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, LinkButton, PageHeader } from "@/components/ui";
 import { TemplatesList } from "@/components/TemplatesList";
 import { SeedPlanButton } from "@/components/SeedPlanButton";
-import { WORKOUT_PLAN } from "@/lib/exerciseCatalog";
+import { getPlanForName } from "@/lib/exerciseCatalog";
 import type { Template, TemplateExercise, Exercise } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -10,15 +10,20 @@ export const dynamic = "force-dynamic";
 export default async function TemplatesPage() {
   const supabase = await createClient();
 
-  const [tplRes, teRes, exRes] = await Promise.all([
+  const [tplRes, teRes, exRes, userRes] = await Promise.all([
     supabase.from("templates").select("*").order("created_at", { ascending: false }),
     supabase.from("template_exercises").select("*"),
     supabase.from("exercises").select("*"),
+    supabase.auth.getUser(),
   ]);
 
   const templates = (tplRes.data ?? []) as Template[];
   const tplExercises = (teRes.data ?? []) as TemplateExercise[];
   const exercises = (exRes.data ?? []) as Exercise[];
+  const userName =
+    (userRes.data?.user?.user_metadata?.name as string | undefined)?.trim() ??
+    "";
+  const plan = getPlanForName(userName);
 
   const exById = new Map(exercises.map((e) => [e.id, e]));
 
@@ -31,9 +36,9 @@ export default async function TemplatesPage() {
     return { ...t, exercises: items };
   });
 
-  // Show the seed CTA whenever any of the four day-templates is missing.
+  // Show the seed CTA whenever any day-template from the user's plan is missing.
   const tplNames = new Set(templates.map((t) => t.name.toLowerCase()));
-  const planMissing = WORKOUT_PLAN.some(
+  const planMissing = plan.days.some(
     (d) => !tplNames.has(d.name.toLowerCase())
   );
 
@@ -51,13 +56,11 @@ export default async function TemplatesPage() {
 
       {planMissing ? (
         <Card className="p-5 border-[var(--primary)]/30 bg-[var(--primary-soft)]">
-          <p className="font-semibold">Import the 4-day plan</p>
+          <p className="font-semibold">{plan.ctaLabel}</p>
           <p className="text-sm text-[var(--foreground-muted)] mt-1 mb-4">
-            Adds Chest &amp; Triceps, Back &amp; Biceps, Legs &amp; Cardio,
-            and Shoulders &amp; Arms — pre-loaded with the right exercises
-            and targets.
+            {plan.description}
           </p>
-          <SeedPlanButton label="Import 4-day plan" />
+          <SeedPlanButton label={plan.ctaLabel} plan={plan.days} />
         </Card>
       ) : null}
 

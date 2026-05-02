@@ -9,17 +9,21 @@ import {
   findInCatalog,
   guessKind,
   planExerciseNames,
+  type WorkoutDay,
 } from "@/lib/exerciseCatalog";
 import type { Exercise } from "@/lib/types";
 
 export function SeedPlanButton({
   variant = "primary",
   label = "Set up 4-day plan",
+  plan = WORKOUT_PLAN,
   onDone,
   className,
 }: {
   variant?: "primary" | "secondary";
   label?: string;
+  /** Which plan to seed. Defaults to the original 4-day plan. */
+  plan?: WorkoutDay[];
   onDone?: () => void;
   className?: string;
 }) {
@@ -45,7 +49,7 @@ export function SeedPlanButton({
         ((allUserEx ?? []) as Exercise[]).map((e) => [e.name.toLowerCase(), e])
       );
 
-      const needed = planExerciseNames();
+      const needed = planExerciseNames(plan);
       const toInsert = needed
         .filter((name) => !byLowerName.has(name.toLowerCase()))
         .map((name) => ({
@@ -73,7 +77,7 @@ export function SeedPlanButton({
         (existingTemplates ?? []).map((t) => t.name.toLowerCase())
       );
 
-      for (const day of WORKOUT_PLAN) {
+      for (const day of plan) {
         if (existingTplNames.has(day.name.toLowerCase())) continue;
 
         const { data: tpl, error: tplErr } = await supabase
@@ -93,7 +97,7 @@ export function SeedPlanButton({
               position: idx,
               target_sets: ex.sets,
               target_reps: ex.reps ?? null,
-              target_weight: null,
+              target_weight: ex.weight ?? null,
               target_time_seconds: ex.seconds ?? null,
             };
           })

@@ -178,12 +178,15 @@ export function Textarea({
 export function Label({
   children,
   className,
+  htmlFor,
 }: {
   children: ReactNode;
   className?: string;
+  htmlFor?: string;
 }) {
   return (
     <label
+      htmlFor={htmlFor}
       className={clsx(
         "block text-[11px] font-semibold uppercase tracking-wider text-[var(--foreground-muted)] mb-2",
         className

@@ -2,33 +2,45 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Button, Card, Input, Label } from "@/components/ui";
 
 /**
  * Ensures every visitor has a Supabase session — no login required.
- * If the user has no session, we sign them in anonymously. The anonymous
- * user gets a stable `auth.uid()` that all RLS policies still respect,
- * so cloud sync works exactly as before, but with zero friction.
+ * If there's no session, signs in anonymously. The anonymous user gets a
+ * stable `auth.uid()` so RLS works exactly as before.
  *
- * Setup: in Supabase dashboard → Authentication → Providers (or Sign In/Up
- * settings) → enable "Allow anonymous sign-ins".
+ * On first launch we also collect a display name and stash it in the auth
+ * user's metadata (`raw_user_meta_data.name`). The name is queryable from
+ * SQL ("which workouts belong to Sarah?") and shown in the greeting.
  */
 export function AnonAuthGate({ children }: { children: React.ReactNode }) {
-  const [ready, setReady] = useState(false);
+  const [phase, setPhase] = useState<"loading" | "needs-name" | "ready">(
+    "loading"
+  );
   const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const supabase = createClient();
-        const {
+        let {
           data: { session },
         } = await supabase.auth.getSession();
         if (!session) {
           const { error } = await supabase.auth.signInAnonymously();
           if (error) throw error;
+          ({
+            data: { session },
+          } = await supabase.auth.getSession());
         }
-        if (!cancelled) setReady(true);
+        if (cancelled) return;
+        const existingName = (
+          session?.user?.user_metadata?.name as string | undefined
+        )?.trim();
+        setPhase(existingName ? "ready" : "needs-name");
       } catch (e: unknown) {
         if (cancelled) return;
         setError(
@@ -43,7 +55,29 @@ export function AnonAuthGate({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  if (error) {
+  async function saveName(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser({
+        data: { name: trimmed },
+      });
+      if (error) throw error;
+      setPhase("ready");
+    } catch (e: unknown) {
+      setError(
+        e instanceof Error ? e.message : "Could not save your name."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (error && phase !== "needs-name") {
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-6 text-center">
         <div>
@@ -52,7 +86,8 @@ export function AnonAuthGate({ children }: { children: React.ReactNode }) {
             {error}
           </p>
           <p className="text-xs text-[var(--foreground-subtle)] mt-4">
-            In Supabase, enable <span className="font-mono">Allow anonymous sign-ins</span> under
+            In Supabase, enable{" "}
+            <span className="font-mono">Allow anonymous sign-ins</span> under
             Authentication → Sign In / Up.
           </p>
         </div>
@@ -60,10 +95,55 @@ export function AnonAuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!ready) {
+  if (phase === "loading") {
     return (
       <div className="min-h-[80vh] flex items-center justify-center">
         <div className="w-10 h-10 rounded-full border-2 border-[var(--border)] border-t-[var(--primary)] animate-spin" />
+      </div>
+    );
+  }
+
+  if (phase === "needs-name") {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center px-4">
+        <Card className="p-6 max-w-sm w-full">
+          <p className="text-[11px] uppercase tracking-[0.14em] font-semibold text-[var(--primary)] mb-2">
+            Welcome
+          </p>
+          <h1 className="text-2xl font-bold leading-tight">
+            What should we call you?
+          </h1>
+          <p className="text-sm text-[var(--foreground-muted)] mt-2 mb-5">
+            We&rsquo;ll use this to label your workouts and load the right
+            plan. You can change it later from the home screen.
+          </p>
+          <form onSubmit={saveName} className="space-y-3">
+            <div>
+              <Label htmlFor="display-name">Your name</Label>
+              <Input
+                id="display-name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Shameed"
+                autoFocus
+                required
+                maxLength={40}
+                autoComplete="given-name"
+              />
+            </div>
+            {error ? (
+              <p className="text-xs text-[var(--danger)]">{error}</p>
+            ) : null}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={saving || !name.trim()}
+            >
+              {saving ? "Saving…" : "Continue"}
+            </Button>
+          </form>
+        </Card>
       </div>
     );
   }

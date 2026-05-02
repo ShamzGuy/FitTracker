@@ -4,6 +4,8 @@ import { Card, LinkButton, PageHeader, SectionTitle } from "@/components/ui";
 import { formatDateTime } from "@/lib/format";
 import { StartWorkoutButton } from "@/components/StartWorkoutButton";
 import { SeedPlanButton } from "@/components/SeedPlanButton";
+import { EditNameButton } from "@/components/EditNameButton";
+import { getPlanForName } from "@/lib/exerciseCatalog";
 import type { Template, Workout } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const supabase = await createClient();
 
-  const [templatesRes, workoutsRes, activeRes] = await Promise.all([
+  const [templatesRes, workoutsRes, activeRes, userRes] = await Promise.all([
     supabase
       .from("templates")
       .select("*")
@@ -29,15 +31,29 @@ export default async function HomePage() {
       .order("started_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase.auth.getUser(),
   ]);
 
   const templates = (templatesRes.data ?? []) as Template[];
   const recent = (workoutsRes.data ?? []) as Workout[];
   const active = activeRes.data as Workout | null;
+  const userName =
+    (userRes.data?.user?.user_metadata?.name as string | undefined)?.trim() ??
+    "";
+  const plan = getPlanForName(userName);
 
   return (
     <div className="space-y-7">
-      <PageHeader title={greeting()} subtitle={subtitle()} />
+      <PageHeader
+        title={userName ? `${greeting()}, ${userName}` : greeting()}
+        subtitle={subtitle()}
+      />
+
+      {userName ? (
+        <div className="-mt-4 flex justify-end">
+          <EditNameButton currentName={userName} />
+        </div>
+      ) : null}
 
       {active ? (
         <Card className="p-5 border-[var(--primary)]/40 bg-[var(--primary-soft)]">
@@ -86,17 +102,15 @@ export default async function HomePage() {
         </SectionTitle>
         {templates.length === 0 ? (
           <Card className="p-5 border-[var(--primary)]/30 bg-[var(--primary-soft)]">
-            <p className="font-semibold">Import the 4-day plan</p>
+            <p className="font-semibold">{plan.ctaLabel}</p>
             <p className="text-sm text-[var(--foreground-muted)] mt-1 mb-4">
-              Adds Chest &amp; Triceps, Back &amp; Biceps, Legs &amp; Cardio,
-              and Shoulders &amp; Arms — pre-loaded with the right exercises
-              and targets.
+              {plan.description}
             </p>
-            <SeedPlanButton label="Import 4-day plan" />
+            <SeedPlanButton label={plan.ctaLabel} plan={plan.days} />
           </Card>
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            {templates.slice(0, 6).map((t) => (
+            {templates.slice(0, 8).map((t) => (
               <StartWorkoutButton
                 key={t.id}
                 templateId={t.id}

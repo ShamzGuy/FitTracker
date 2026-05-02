@@ -450,6 +450,7 @@ function SetEntry({
   const [weight, setWeight] = useState<number>(() => {
     if (exercise.kind !== "weight") return 0;
     if (previous?.weight != null) return previous.weight;
+    if (target?.target_weight != null) return Number(target.target_weight);
     return 0;
   });
   const [reps, setReps] = useState<number>(() => {
