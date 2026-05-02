@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, Input, Label } from "@/components/ui";
 
@@ -20,6 +21,7 @@ export function AnonAuthGate({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     let cancelled = false;
@@ -29,9 +31,13 @@ export function AnonAuthGate({ children }: { children: React.ReactNode }) {
         let {
           data: { session },
         } = await supabase.auth.getSession();
+        // Track whether we just minted a session so we can refresh the
+        // server-rendered tree (cookies changed → server data is stale).
+        let signedInJustNow = false;
         if (!session) {
           const { error } = await supabase.auth.signInAnonymously();
           if (error) throw error;
+          signedInJustNow = true;
           ({
             data: { session },
           } = await supabase.auth.getSession());
@@ -40,7 +46,14 @@ export function AnonAuthGate({ children }: { children: React.ReactNode }) {
         const existingName = (
           session?.user?.user_metadata?.name as string | undefined
         )?.trim();
-        setPhase(existingName ? "ready" : "needs-name");
+        if (existingName) {
+          setPhase("ready");
+          // Children were server-rendered before our sign-in cookies
+          // existed; re-fetch so the home page sees the current user.
+          if (signedInJustNow) router.refresh();
+        } else {
+          setPhase("needs-name");
+        }
       } catch (e: unknown) {
         if (cancelled) return;
         setError(
@@ -53,7 +66,7 @@ export function AnonAuthGate({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [router]);
 
   async function saveName(e: React.FormEvent) {
     e.preventDefault();
@@ -68,6 +81,9 @@ export function AnonAuthGate({ children }: { children: React.ReactNode }) {
       });
       if (error) throw error;
       setPhase("ready");
+      // Server-rendered children were produced before the name existed —
+      // refresh so the home page picks the right plan + greeting.
+      router.refresh();
     } catch (e: unknown) {
       setError(
         e instanceof Error ? e.message : "Could not save your name."
