@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { WorkoutScreen } from "@/components/WorkoutScreen";
 import type {
   Exercise,
+  LastBest,
   TemplateExercise,
   Workout,
   WorkoutSet,
@@ -44,12 +45,48 @@ export default async function WorkoutPage({
     templateItems = (data ?? []) as TemplateExercise[];
   }
 
+  // For every exercise that may appear in this workout, look up the
+  // most recent prior workout that touched it and capture the best
+  // weight / reps / time across that session. Used to pre-fill defaults
+  // so the user always has something to beat.
+  const exerciseIds = new Set<string>();
+  for (const t of templateItems) exerciseIds.add(t.exercise_id);
+  for (const s of sets) exerciseIds.add(s.exercise_id);
+
+  const lastByExercise: Record<string, LastBest> = {};
+  await Promise.all(
+    Array.from(exerciseIds).map(async (exId) => {
+      // RLS scopes this to the current user's sets.
+      const { data } = await supabase
+        .from("sets")
+        .select("workout_id, weight, reps, time_seconds")
+        .eq("exercise_id", exId)
+        .neq("workout_id", id)
+        .order("completed_at", { ascending: false })
+        .limit(40);
+      if (!data || data.length === 0) return;
+      const lastWorkoutId = data[0].workout_id;
+      const lastSets = data.filter((s) => s.workout_id === lastWorkoutId);
+      lastByExercise[exId] = {
+        weight: maxOrNull(lastSets.map((s) => s.weight)),
+        reps: maxOrNull(lastSets.map((s) => s.reps)),
+        time_seconds: maxOrNull(lastSets.map((s) => s.time_seconds)),
+      };
+    })
+  );
+
   return (
     <WorkoutScreen
       workout={workout}
       initialSets={sets}
       exercises={exercises}
       templateItems={templateItems}
+      lastByExercise={lastByExercise}
     />
   );
+}
+
+function maxOrNull(values: (number | null)[]): number | null {
+  const nums = values.filter((v): v is number => typeof v === "number");
+  return nums.length ? Math.max(...nums) : null;
 }

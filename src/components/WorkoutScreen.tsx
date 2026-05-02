@@ -19,6 +19,7 @@ import { TimeStepper } from "@/components/TimeStepper";
 import { formatDateTime, formatTime } from "@/lib/format";
 import type {
   Exercise,
+  LastBest,
   TemplateExercise,
   Workout,
   WorkoutSet,
@@ -29,11 +30,14 @@ export function WorkoutScreen({
   initialSets,
   exercises: initialExercises,
   templateItems,
+  lastByExercise = {},
 }: {
   workout: Workout;
   initialSets: WorkoutSet[];
   exercises: Exercise[];
   templateItems: TemplateExercise[];
+  /** Best weight/reps/time from the user's previous session per exercise. */
+  lastByExercise?: Record<string, LastBest>;
 }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -260,6 +264,7 @@ export function WorkoutScreen({
               exercise={activeExercise}
               target={templateById.get(activeExercise.id) ?? null}
               previous={(setsByExercise.get(activeExercise.id) ?? []).slice(-1)[0]}
+              lastBest={lastByExercise[activeExercise.id] ?? null}
               onAdd={addSet}
             />
           ) : null}
@@ -402,6 +407,28 @@ function formatSetValue(s: WorkoutSet, ex: Exercise) {
   return `${s.reps ?? 0} reps`;
 }
 
+function formatLastBest(
+  ex: Exercise,
+  lastBest: LastBest | null
+): string | null {
+  if (!lastBest) return null;
+  if (ex.kind === "weight") {
+    if (lastBest.weight == null && lastBest.reps == null) return null;
+    const w = lastBest.weight != null ? `${lastBest.weight} kg` : "";
+    const r = lastBest.reps != null ? `${lastBest.reps} reps` : "";
+    return [w, r].filter(Boolean).join(" × ");
+  }
+  if (ex.kind === "reps") {
+    if (lastBest.reps == null) return null;
+    return `${lastBest.reps} reps`;
+  }
+  if (ex.kind === "time") {
+    if (lastBest.time_seconds == null) return null;
+    return formatTime(lastBest.time_seconds);
+  }
+  return null;
+}
+
 function formatTarget(
   ex: Exercise,
   target: TemplateExercise | null
@@ -434,11 +461,13 @@ function SetEntry({
   exercise,
   previous,
   target,
+  lastBest,
   onAdd,
 }: {
   exercise: Exercise;
   previous: WorkoutSet | undefined;
   target: TemplateExercise | null;
+  lastBest: LastBest | null;
   onAdd: (input: {
     exerciseId: string;
     weight?: number | null;
@@ -446,22 +475,26 @@ function SetEntry({
     timeSeconds?: number | null;
   }) => Promise<void>;
 }) {
-  // Initial values: previous set first, then template target, then sane defaults.
+  // Pre-fill priority: this workout's previous set → last session's best
+  // (so you always see a number to beat) → template target → sane default.
   const [weight, setWeight] = useState<number>(() => {
     if (exercise.kind !== "weight") return 0;
     if (previous?.weight != null) return previous.weight;
+    if (lastBest?.weight != null) return lastBest.weight;
     if (target?.target_weight != null) return Number(target.target_weight);
     return 0;
   });
   const [reps, setReps] = useState<number>(() => {
     if (exercise.kind === "time") return 0;
     if (previous?.reps != null) return previous.reps;
+    if (lastBest?.reps != null) return lastBest.reps;
     if (target?.target_reps != null) return target.target_reps;
     return exercise.kind === "weight" ? 10 : 12;
   });
   const [timeSeconds, setTimeSeconds] = useState<number>(() => {
     if (exercise.kind !== "time") return 0;
     if (previous?.time_seconds != null) return previous.time_seconds;
+    if (lastBest?.time_seconds != null) return lastBest.time_seconds;
     if (target?.target_time_seconds != null) return target.target_time_seconds;
     return 30;
   });
@@ -500,8 +533,19 @@ function SetEntry({
     }
   }
 
+  const lastBestSummary = !previous
+    ? formatLastBest(exercise, lastBest)
+    : null;
+
   return (
     <div className="space-y-5">
+      {lastBestSummary ? (
+        <p className="text-xs text-center text-[var(--foreground-muted)]">
+          Last time: <span className="font-semibold text-[var(--foreground)]">{lastBestSummary}</span>
+          <span className="text-[var(--primary)] font-semibold"> · push for more</span>
+        </p>
+      ) : null}
+
       {exercise.kind === "weight" ? (
         <div className="space-y-5">
           <NumberStepper
