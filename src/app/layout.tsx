@@ -52,8 +52,8 @@ export default function RootLayout({
           <main className="flex-1 max-w-xl w-full mx-auto px-4 pt-safe pb-safe-lg">
             {children}
           </main>
-          <BottomNav />
         </AnonAuthGate>
+        <BottomNav />
       </body>
     </html>
   );

@@ -50,7 +50,14 @@ export default async function HomePage() {
       />
 
       {userName ? (
-        <div className="-mt-4 flex justify-end">
+        <div className="-mt-4 flex justify-end items-center gap-3">
+          <Link
+            href="/dashboard"
+            className="text-xs font-semibold text-[var(--foreground-muted)] hover:text-[var(--primary)] hover:underline"
+          >
+            Household dashboard →
+          </Link>
+          <span className="text-[var(--foreground-subtle)] text-[10px]">·</span>
           <EditNameButton currentName={userName} />
         </div>
       ) : null}

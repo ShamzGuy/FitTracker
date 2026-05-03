@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, Input, Label } from "@/components/ui";
 
@@ -15,15 +15,20 @@ import { Button, Card, Input, Label } from "@/components/ui";
  * SQL ("which workouts belong to Sarah?") and shown in the greeting.
  */
 export function AnonAuthGate({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  // The /dashboard route is a separate, PIN-gated household view that
+  // doesn't need (or want) a per-visitor anon Supabase session.
+  const skip = pathname?.startsWith("/dashboard") ?? false;
   const [phase, setPhase] = useState<"loading" | "needs-name" | "ready">(
-    "loading"
+    skip ? "ready" : "loading"
   );
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
-  const router = useRouter();
 
   useEffect(() => {
+    if (skip) return;
     let cancelled = false;
     (async () => {
       try {
@@ -66,7 +71,7 @@ export function AnonAuthGate({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, skip]);
 
   async function saveName(e: React.FormEvent) {
     e.preventDefault();

@@ -56,7 +56,20 @@ The app uses anonymous sessions so there's no login screen. Enable it:
    ```
    NEXT_PUBLIC_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR-ANON-KEY
+
+   # Optional — only needed for the household dashboard at /dashboard
+   SUPABASE_SERVICE_ROLE_KEY=YOUR-SERVICE-ROLE-KEY
+   DASHBOARD_PIN=1234
    ```
+
+   The **service role key** is on the same Supabase API page (label
+   `service_role`). It bypasses Row Level Security, so the dashboard
+   can read both household members&rsquo; data in one view. Treat it
+   like a password — never commit it, never expose it to the browser.
+
+   `DASHBOARD_PIN` is whatever short code you choose. The
+   `/dashboard` page asks for it once per device and remembers it for
+   60 days.
 
 ### 4. Run locally
 
@@ -76,8 +89,11 @@ So you can use it on your iPhone from anywhere.
 
 1. Push this repo to GitHub.
 2. Go to [vercel.com/new](https://vercel.com/new), import the repo.
-3. Add the two env vars (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
+3. Add the env vars: `NEXT_PUBLIC_SUPABASE_URL`,
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and (for the household dashboard)
+   `SUPABASE_SERVICE_ROLE_KEY` + `DASHBOARD_PIN`.
 4. Deploy. You'll get a URL like `https://ft-tracker-xyz.vercel.app`.
+   The dashboard lives at `/dashboard`.
 
 ### One Supabase tweak for production
 
@@ -123,7 +139,9 @@ src/
     templates/            # Template list / new / edit
     workout/[id]/         # Active workout (set logging)
     history/              # Per-exercise progress chart + history
+    dashboard/            # PIN-gated household view (you + partner)
   components/             # UI primitives + feature components
+  components/dashboard/   # Dashboard-only chart + section components
   lib/
     supabase/             # Client + server + middleware Supabase factories
     types.ts              # DB row types

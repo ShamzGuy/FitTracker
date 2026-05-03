@@ -64,6 +64,10 @@ const items: NavItem[] = [
 export function BottomNav() {
   const pathname = usePathname();
 
+  // The household dashboard is a separate, PIN-gated surface and
+  // shouldn't share the per-user app chrome.
+  if (pathname.startsWith("/dashboard")) return null;
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-[var(--border)] bg-[var(--background)]/85 backdrop-blur-xl pb-safe">
       <ul className="grid grid-cols-4 max-w-xl mx-auto px-2 pt-1.5">
